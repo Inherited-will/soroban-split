@@ -2,15 +2,18 @@
 name = "soroban-split"
 version = "0.1.0"
 edition = "2021"
+description = "A payment splitting smart contract on Stellar Soroban — send one payment, automatically distribute to multiple recipients by percentage"
+license = "MIT"
+repository = "https://github.com/Inherited-will/soroban-split"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-soroban-sdk = { version = "21.7.6", features = ["alloc"] }
+soroban-sdk = { version = "21.7.6", features = [] }
 
 [dev-dependencies]
-soroban-sdk = { version = "21.7.6", features = ["testutils", "alloc"] }
+soroban-sdk = { version = "21.7.6", features = ["testutils"] }
 
 [profile.release]
 opt-level = "z"
