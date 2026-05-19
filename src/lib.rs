@@ -296,16 +296,13 @@ mod tests {
         Address, Env, String, Vec,
     };
 
-    fn setup() -> (Env, Address, SorobanSplitContractClient) {
-        let env = Env::default();
+    fn setup(env: &Env) -> (Address, SorobanSplitContractClient) {
         env.mock_all_auths();
-
-        let admin = Address::generate(&env);
+        let admin = Address::generate(env);
         let contract_id = env.register_contract(None, SorobanSplitContract);
-        let client = SorobanSplitContractClient::new(&env, &contract_id);
+        let client = SorobanSplitContractClient::new(env, &contract_id);
         client.initialize(&admin);
-
-        (env, admin, client)
+        (admin, client)
     }
 
     fn make_token(env: &Env) -> Address {
@@ -314,9 +311,7 @@ mod tests {
     }
 
     fn mint(env: &Env, token: &Address, to: &Address, amount: i128) {
-        let token_admin_addr = Address::generate(env);
-        let asset_client = StellarAssetClient::new(env, token);
-        asset_client.mint(to, &amount);
+        StellarAssetClient::new(env, token).mint(to, &amount);
     }
 
     fn make_split(
@@ -336,13 +331,15 @@ mod tests {
 
     #[test]
     fn test_initialize() {
-        let (env, _admin, client) = setup();
+        let env = Env::default();
+        let (_admin, client) = setup(&env);
         assert_eq!(client.get_count(), 0);
     }
 
     #[test]
     fn test_create_split() {
-        let (env, _, client) = setup();
+        let env = Env::default();
+        let (_, client) = setup(&env);
         let owner = Address::generate(&env);
         let r1 = Address::generate(&env);
         let r2 = Address::generate(&env);
@@ -374,7 +371,8 @@ mod tests {
 
     #[test]
     fn test_execute_split_distributes_correctly() {
-        let (env, _, client) = setup();
+        let env = Env::default();
+        let (_, client) = setup(&env);
         let token = make_token(&env);
         let owner = Address::generate(&env);
         let caller = Address::generate(&env);
@@ -382,7 +380,7 @@ mod tests {
         let r2 = Address::generate(&env);
         let r3 = Address::generate(&env);
 
-        mint(&env, &token, &caller, &10_000);
+        mint(&env, &token, &caller, 10_000);
 
         let mut recipients = Vec::new(&env);
         recipients.push_back(r1.clone());
@@ -390,9 +388,9 @@ mod tests {
         recipients.push_back(r3.clone());
 
         let mut shares = Vec::new(&env);
-        shares.push_back(7000u32); // 70%
-        shares.push_back(2000u32); // 20%
-        shares.push_back(1000u32); // 10%
+        shares.push_back(7000u32);
+        shares.push_back(2000u32);
+        shares.push_back(1000u32);
 
         let id = make_split(&env, &client, &owner, recipients, shares);
         client.execute_split(&caller, &id, &token, &10_000i128);
@@ -405,13 +403,14 @@ mod tests {
 
     #[test]
     fn test_execute_single_recipient() {
-        let (env, _, client) = setup();
+        let env = Env::default();
+        let (_, client) = setup(&env);
         let token = make_token(&env);
         let owner = Address::generate(&env);
         let caller = Address::generate(&env);
         let r1 = Address::generate(&env);
 
-        mint(&env, &token, &caller, &5_000);
+        mint(&env, &token, &caller, 5_000);
 
         let mut recipients = Vec::new(&env);
         recipients.push_back(r1.clone());
@@ -428,7 +427,8 @@ mod tests {
 
     #[test]
     fn test_update_split() {
-        let (env, _, client) = setup();
+        let env = Env::default();
+        let (_, client) = setup(&env);
         let owner = Address::generate(&env);
         let r1 = Address::generate(&env);
         let r2 = Address::generate(&env);
@@ -441,7 +441,6 @@ mod tests {
 
         let id = make_split(&env, &client, &owner, recipients, shares);
 
-        // Update to 50/50
         let mut new_recipients = Vec::new(&env);
         new_recipients.push_back(r1.clone());
         new_recipients.push_back(r2.clone());
@@ -460,7 +459,8 @@ mod tests {
 
     #[test]
     fn test_deactivate_split() {
-        let (env, _, client) = setup();
+        let env = Env::default();
+        let (_, client) = setup(&env);
         let owner = Address::generate(&env);
         let r1 = Address::generate(&env);
 
@@ -479,7 +479,8 @@ mod tests {
 
     #[test]
     fn test_reactivate_split() {
-        let (env, _, client) = setup();
+        let env = Env::default();
+        let (_, client) = setup(&env);
         let owner = Address::generate(&env);
         let r1 = Address::generate(&env);
 
@@ -499,7 +500,8 @@ mod tests {
 
     #[test]
     fn test_multiple_splits_increment_counter() {
-        let (env, _, client) = setup();
+        let env = Env::default();
+        let (_, client) = setup(&env);
         let owner = Address::generate(&env);
         let r1 = Address::generate(&env);
 
@@ -521,7 +523,8 @@ mod tests {
 
     #[test]
     fn test_get_recipients_and_shares() {
-        let (env, _, client) = setup();
+        let env = Env::default();
+        let (_, client) = setup(&env);
         let owner = Address::generate(&env);
         let r1 = Address::generate(&env);
         let r2 = Address::generate(&env);
@@ -547,7 +550,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "Shares must sum to 10000 basis points")]
     fn test_shares_must_sum_to_10000() {
-        let (env, _, client) = setup();
+        let env = Env::default();
+        let (_, client) = setup(&env);
         let owner = Address::generate(&env);
         let r1 = Address::generate(&env);
 
@@ -555,7 +559,7 @@ mod tests {
         recipients.push_back(r1);
 
         let mut shares = Vec::new(&env);
-        shares.push_back(5000u32); // Only 50% — invalid
+        shares.push_back(5000u32);
 
         client.create_split(
             &owner,
@@ -568,7 +572,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "Recipients and shares length mismatch")]
     fn test_length_mismatch_panics() {
-        let (env, _, client) = setup();
+        let env = Env::default();
+        let (_, client) = setup(&env);
         let owner = Address::generate(&env);
         let r1 = Address::generate(&env);
         let r2 = Address::generate(&env);
@@ -578,7 +583,7 @@ mod tests {
         recipients.push_back(r2);
 
         let mut shares = Vec::new(&env);
-        shares.push_back(10000u32); // 2 recipients, 1 share — invalid
+        shares.push_back(10000u32);
 
         client.create_split(
             &owner,
@@ -591,13 +596,14 @@ mod tests {
     #[test]
     #[should_panic(expected = "Split is not active")]
     fn test_execute_inactive_split_panics() {
-        let (env, _, client) = setup();
+        let env = Env::default();
+        let (_, client) = setup(&env);
         let token = make_token(&env);
         let owner = Address::generate(&env);
         let caller = Address::generate(&env);
         let r1 = Address::generate(&env);
 
-        mint(&env, &token, &caller, &1000);
+        mint(&env, &token, &caller, 1000);
 
         let mut recipients = Vec::new(&env);
         recipients.push_back(r1);
@@ -613,7 +619,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "Amount must be greater than zero")]
     fn test_zero_amount_panics() {
-        let (env, _, client) = setup();
+        let env = Env::default();
+        let (_, client) = setup(&env);
         let token = make_token(&env);
         let owner = Address::generate(&env);
         let caller = Address::generate(&env);
@@ -632,7 +639,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "Not the split owner")]
     fn test_non_owner_cannot_deactivate() {
-        let (env, _, client) = setup();
+        let env = Env::default();
+        let (_, client) = setup(&env);
         let owner = Address::generate(&env);
         let attacker = Address::generate(&env);
         let r1 = Address::generate(&env);
@@ -644,6 +652,6 @@ mod tests {
         shares.push_back(10000u32);
 
         let id = make_split(&env, &client, &owner, recipients, shares);
-        client.deactivate_split(&attacker, &id); // Should panic
+        client.deactivate_split(&attacker, &id);
     }
 }
