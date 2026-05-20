@@ -42,7 +42,7 @@ impl SorobanSplitContract {
     ) -> u64 {
         owner.require_auth();
         assert!(!name.is_empty(), "Name cannot be empty");
-        assert!(recipients.len() > 0, "Must have at least one recipient");
+        assert!(!recipients.is_empty(), "Must have at least one recipient");
         assert!(
             recipients.len() == shares.len(),
             "Recipients and shares length mismatch"
@@ -121,7 +121,7 @@ impl SorobanSplitContract {
 
         assert!(split.owner == owner, "Not the split owner");
         assert!(split.active, "Split is not active");
-        assert!(recipients.len() > 0, "Must have at least one recipient");
+        assert!(!recipients.is_empty(), "Must have at least one recipient");
         assert!(
             recipients.len() == shares.len(),
             "Recipients and shares length mismatch"
