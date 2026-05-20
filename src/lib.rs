@@ -2,11 +2,6 @@
 
 use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, String, Symbol, Vec};
 
-// ============================================================
-// Data Types
-// ============================================================
-
-/// A payment split configuration
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Split {
@@ -14,49 +9,30 @@ pub struct Split {
     pub owner: Address,
     pub name: String,
     pub recipients: Vec<Address>,
-    /// Shares in basis points — must sum to 10000 (100%)
     pub shares: Vec<u32>,
     pub active: bool,
 }
 
-/// Storage keys
 #[contracttype]
 pub enum DataKey {
-    Split(u64),  // split_id -> Split
-    Counter,     // total splits created
-    Admin,       // contract admin
+    Split(u64), // split_id -> Split
+    Counter,    // total splits created
+    Admin,      // contract admin
 }
-
-// ============================================================
-// Contract
-// ============================================================
 
 #[contract]
 pub struct SorobanSplitContract;
 
 #[contractimpl]
 impl SorobanSplitContract {
-    // --------------------------------------------------------
-    // Initialization
-    // --------------------------------------------------------
-
-    /// Initialize the contract with an admin address
     pub fn initialize(env: Env, admin: Address) {
         admin.require_auth();
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Counter, &0u64);
-
         env.events()
             .publish((Symbol::new(&env, "initialized"),), (admin,));
     }
 
-    // --------------------------------------------------------
-    // Split Management
-    // --------------------------------------------------------
-
-    /// Create a new payment split.
-    /// Shares are in basis points — must sum to exactly 10000 (= 100%).
-    /// Returns the new split ID.
     pub fn create_split(
         env: Env,
         owner: Address,
@@ -65,8 +41,6 @@ impl SorobanSplitContract {
         shares: Vec<u32>,
     ) -> u64 {
         owner.require_auth();
-
-        // Validate inputs
         assert!(!name.is_empty(), "Name cannot be empty");
         assert!(recipients.len() > 0, "Must have at least one recipient");
         assert!(
@@ -78,11 +52,7 @@ impl SorobanSplitContract {
             "Shares must sum to 10000 basis points"
         );
 
-        let counter: u64 = env
-            .storage()
-            .instance()
-            .get(&DataKey::Counter)
-            .unwrap_or(0);
+        let counter: u64 = env.storage().instance().get(&DataKey::Counter).unwrap_or(0);
         let split_id = counter + 1;
 
         let split = Split {
@@ -97,9 +67,7 @@ impl SorobanSplitContract {
         env.storage()
             .persistent()
             .set(&DataKey::Split(split_id), &split);
-        env.storage()
-            .instance()
-            .set(&DataKey::Counter, &split_id);
+        env.storage().instance().set(&DataKey::Counter, &split_id);
 
         env.events()
             .publish((Symbol::new(&env, "split_created"),), (split_id, owner));
@@ -107,15 +75,7 @@ impl SorobanSplitContract {
         split_id
     }
 
-    /// Execute a split — transfers `amount` of `token` from `caller`
-    /// to all recipients according to their shares.
-    pub fn execute_split(
-        env: Env,
-        caller: Address,
-        split_id: u64,
-        token: Address,
-        amount: i128,
-    ) {
+    pub fn execute_split(env: Env, caller: Address, split_id: u64, token: Address, amount: i128) {
         caller.require_auth();
         assert!(amount > 0, "Amount must be greater than zero");
 
@@ -144,7 +104,6 @@ impl SorobanSplitContract {
         );
     }
 
-    /// Owner updates recipients and shares of an existing split.
     pub fn update_split(
         env: Env,
         owner: Address,
@@ -183,7 +142,6 @@ impl SorobanSplitContract {
             .publish((Symbol::new(&env, "split_updated"),), (split_id, owner));
     }
 
-    /// Owner deactivates a split — it can no longer be executed.
     pub fn deactivate_split(env: Env, owner: Address, split_id: u64) {
         owner.require_auth();
 
@@ -206,7 +164,6 @@ impl SorobanSplitContract {
             .publish((Symbol::new(&env, "split_deactivated"),), (split_id, owner));
     }
 
-    /// Owner reactivates a previously deactivated split.
     pub fn reactivate_split(env: Env, owner: Address, split_id: u64) {
         owner.require_auth();
 
@@ -229,11 +186,6 @@ impl SorobanSplitContract {
             .publish((Symbol::new(&env, "split_reactivated"),), (split_id, owner));
     }
 
-    // --------------------------------------------------------
-    // Read / Query Functions
-    // --------------------------------------------------------
-
-    /// Get split details by ID
     pub fn get_split(env: Env, split_id: u64) -> Split {
         env.storage()
             .persistent()
@@ -241,15 +193,10 @@ impl SorobanSplitContract {
             .expect("Split not found")
     }
 
-    /// Get total number of splits created
     pub fn get_count(env: Env) -> u64 {
-        env.storage()
-            .instance()
-            .get(&DataKey::Counter)
-            .unwrap_or(0)
+        env.storage().instance().get(&DataKey::Counter).unwrap_or(0)
     }
 
-    /// Get recipients for a split
     pub fn get_recipients(env: Env, split_id: u64) -> Vec<Address> {
         let split: Split = env
             .storage()
@@ -259,7 +206,6 @@ impl SorobanSplitContract {
         split.recipients
     }
 
-    /// Get shares for a split
     pub fn get_shares(env: Env, split_id: u64) -> Vec<u32> {
         let split: Split = env
             .storage()
@@ -269,11 +215,6 @@ impl SorobanSplitContract {
         split.shares
     }
 
-    // --------------------------------------------------------
-    // Internal Helpers
-    // --------------------------------------------------------
-
-    /// Sum all shares — must equal 10000 for a valid split
     fn sum_shares(shares: &Vec<u32>) -> u32 {
         let mut total: u32 = 0;
         for i in 0..shares.len() {
@@ -283,17 +224,11 @@ impl SorobanSplitContract {
     }
 }
 
-// ============================================================
-// Tests
-// ============================================================
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use soroban_sdk::{
-        testutils::Address as _,
-        token::StellarAssetClient,
-        Address, Env, String, Vec,
+        testutils::Address as _, token::StellarAssetClient, Address, Env, String, Vec,
     };
 
     fn setup(env: &Env) -> (Address, SorobanSplitContractClient<'_>) {
@@ -307,7 +242,8 @@ mod tests {
 
     fn make_token(env: &Env) -> Address {
         let token_admin = Address::generate(env);
-        env.register_stellar_asset_contract_v2(token_admin).address()
+        env.register_stellar_asset_contract_v2(token_admin)
+            .address()
     }
 
     fn mint(env: &Env, token: &Address, to: &Address, amount: i128) {
