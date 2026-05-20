@@ -296,7 +296,7 @@ mod tests {
         Address, Env, String, Vec,
     };
 
-    fn setup(env: &Env) -> (Address, SorobanSplitContractClient) {
+    fn setup(env: &Env) -> (Address, SorobanSplitContractClient<'_>) {
         env.mock_all_auths();
         let admin = Address::generate(env);
         let contract_id = env.register_contract(None, SorobanSplitContract);
